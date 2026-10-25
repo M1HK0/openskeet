@@ -1,0 +1,24 @@
+build/
+cmake-build-*/
+.vs/
+.vscode/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.i64
+*.idb
+*.id0
+*.id1
+*.id2
+*.nam
+*.til
+nwkLem/
+skeet orginal/
+*.dll
+*.exe
+*.pdb
+*.obj
+*.lib
+*.exp
+*.ilk
