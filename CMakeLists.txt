@@ -22,6 +22,8 @@ add_library(openskeet SHARED
     src/sdk/sig_scanner.cpp
     src/sdk/entity.cpp
     src/sdk/engine.cpp
+    src/sdk/render.cpp
+    src/sdk/events.cpp
     src/hooks/hooks.cpp
     src/features/v8_bridge.cpp
     src/features/scripting.cpp
