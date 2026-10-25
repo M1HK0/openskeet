@@ -21,6 +21,12 @@ add_library(openskeet SHARED
     src/sdk/sig_scanner.cpp
     src/hooks/hooks.cpp
     src/features/v8_bridge.cpp
+    src/features/scripting.cpp
+    src/features/aimbot.cpp
+    src/features/visuals.cpp
+    src/features/movement.cpp
+    src/features/skinchanger.cpp
+    src/features/misc.cpp
 )
 
 target_include_directories(openskeet PRIVATE
