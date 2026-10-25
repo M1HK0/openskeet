@@ -1,6 +1,13 @@
 #include "hooks/hooks.h"
 #include "sdk/interfaces.h"
 #include "sdk/offsets.h"
+#include "sdk/engine.h"
+#include "features/aimbot.h"
+#include "features/visuals.h"
+#include "features/movement.h"
+#include "features/skinchanger.h"
+#include "features/misc.h"
+#include "features/scripting.h"
 
 namespace hooks {
 
@@ -136,30 +143,41 @@ void remove_hooks() {
 // === HOOK IMPLEMENTATIONS ===
 
 void __fastcall hk_frame_stage_notify(void* ecx, void* edx, int stage) {
-    // Stage 5 = FRAME_RENDER_START
-    // Stage 6 = FRAME_RENDER_END
-    // The original binary processes skin changes, visual modifications etc. here
+    // Dispatch to features before calling original
+    features::skinchanger::instance().on_frame_stage_notify(stage);
+    features::scripting_api::instance().fire_event(features::script_event::frame_stage_notify, &stage);
 
-    // Call original
     client_hook.get_original<void(__thiscall*)(void*, int)>(37)(ecx, stage);
 }
 
 bool __fastcall hk_create_move(void* ecx, void* edx, float sample_time, void* cmd) {
-    // This is the main input processing hook
-    // Original binary runs: aimbot, trigger, anti-aim, movement fixes, etc.
-
     auto original = client_mode_hook.get_original<bool(__thiscall*)(void*, float, void*)>(24);
     bool result = original(ecx, sample_time, cmd);
 
-    // TODO: implement features:
-    // - Rage aimbot
-    // - Legit aimbot
-    // - Triggerbot
-    // - Anti-aim (desync, jitter, etc.)
-    // - Movement (bhop, autostrafe)
-    // - Fakelag
+    if (!cmd) return result;
+    auto* ucmd = static_cast<features::cmd_t*>(cmd);
 
-    return false; // Return false to not reset sendpacket flag
+    if (!sdk::is_in_game()) return result;
+
+    // Save original angles for movement fix
+    auto old_angles = ucmd->viewangles;
+    bool send_packet = true;
+
+    // Run features in order
+    features::scripting_api::instance().fire_event(features::script_event::create_move, cmd);
+    features::misc_features::instance().run(ucmd);
+    features::movement::instance().run(ucmd);
+    features::aimbot::instance().run(ucmd);
+    features::triggerbot::instance().run(ucmd);
+    features::anti_aim::instance().run(ucmd, &send_packet);
+    features::fakelag::instance().run(ucmd, &send_packet);
+
+    // Fix movement after angle changes
+    features::movement::instance().run(ucmd);
+
+    features::scripting_api::instance().fire_event(features::script_event::setup_command, cmd);
+
+    return false;
 }
 
 void __fastcall hk_lock_cursor(void* ecx, void* edx) {
@@ -170,17 +188,23 @@ void __fastcall hk_lock_cursor(void* ecx, void* edx) {
 }
 
 void __fastcall hk_paint_traverse(void* ecx, void* edx, unsigned int panel, bool force_repaint, bool allow_force) {
-    // Call original first
     panel_hook.get_original<void(__thiscall*)(void*, unsigned int, bool, bool)>(41)(ecx, panel, force_repaint, allow_force);
 
-    // TODO: render ESP, watermark, indicators etc.
-    // The original binary checks panel name to find the right rendering surface
+    // Only render on the top-level panel (MatSystemTopPanel / FocusOverlayPanel)
+    // IPanel::GetName is vtable[36]
+    if (sdk::g_interfaces.panel) {
+        using get_name_fn = const char*(__thiscall*)(void*, unsigned int);
+        const char* name = (*reinterpret_cast<get_name_fn**>(sdk::g_interfaces.panel))[36](sdk::g_interfaces.panel, panel);
+        if (name && name[0] == 'M' && name[3] == 'S') { // "MatSystemTopPanel"
+            features::esp::instance().paint();
+            features::misc_features::instance().paint();
+            features::scripting_api::instance().fire_event(features::script_event::paint, nullptr);
+        }
+    }
 }
 
 void __fastcall hk_draw_model_execute(void* ecx, void* edx, void* ctx, void* state, void* info, void* bone_to_world) {
-    // Used for chams (material override on player models)
-    // TODO: implement chams
-
+    features::chams::instance().on_draw_model_execute(ctx, state, info, bone_to_world);
     model_render_hook.get_original<void(__thiscall*)(void*, void*, void*, void*, void*)>(21)(ecx, ctx, state, info, bone_to_world);
 }
 
@@ -192,10 +216,8 @@ void __fastcall hk_draw_model(void* ecx, void* edx, void* results, void* info, v
 }
 
 void __fastcall hk_scene_end(void* ecx, void* edx) {
-    // Scene end hook for glow and other post-processing effects
-    // TODO: implement glow, chams through materials
-
     render_view_hook.get_original<void(__thiscall*)(void*)>(9)(ecx);
+    features::glow::instance().run();
 }
 
 }

@@ -7,7 +7,11 @@
 #include "core/console.h"
 #include "sdk/offsets.h"
 #include "sdk/netvars.h"
+#include "sdk/interfaces.h"
+#include "sdk/render.h"
+#include "sdk/events.h"
 #include "hooks/hooks.h"
+#include "features/scripting.h"
 
 // Encrypted string blobs from .rdata xmmword constants
 // Decryption: dst[i] = src[i] ^ ((i % 52) + 51)
@@ -85,15 +89,21 @@ static DWORD WINAPI cheat_main(HMODULE dll_module) {
         core::console_print(std::cout, reinterpret_cast<const char*>(decrypted));
     }
 
-    // Step 7: Resolve netvars and offsets (sub_10192F70)
+    // Step 7: Resolve modules, interfaces, netvars and offsets (sub_10192F70)
     sdk::g_modules.resolve();
+    sdk::g_interfaces.resolve();
     sdk::g_offsets.resolve(sdk::g_modules);
     sdk::netvar_manager::instance().init();
 
-    // Step 8: Install hooks
+    // Step 8: Initialize subsystems
+    sdk::render::instance().init();
+    sdk::event_manager::instance().init();
+    features::scripting_api::instance().init();
+
+    // Step 9: Install hooks
     hooks::install_hooks();
 
-    // Step 9: Thread hijack for anti-analysis (sub_101942A0)
+    // Step 10: Thread hijack for anti-analysis (sub_101942A0)
     core::thread_hijack(ctx);
 
     return 0;
