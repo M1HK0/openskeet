@@ -15,6 +15,7 @@ add_library(openskeet SHARED
     src/core/console.cpp
     src/core/vm_decoder.cpp
     src/core/config.cpp
+    src/core/json.cpp
     src/sdk/netvars.cpp
     src/sdk/interfaces.cpp
     src/sdk/offsets.cpp

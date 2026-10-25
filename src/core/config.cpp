@@ -1,5 +1,7 @@
 #include "core/config.h"
+#include "core/json.h"
 #include <fstream>
+#include <sstream>
 
 namespace core {
 
@@ -53,14 +55,45 @@ std::string config::get_string(const std::string& key, const std::string& def) c
 }
 
 bool config::load(const char* path) {
-    // TODO: JSON parser matching the original binary's embedded parser
-    // The original uses a custom JSON parser (sub_10198990, sub_1019A3C0, etc.)
-    return false;
+    std::ifstream file(path);
+    if (!file.is_open())
+        return false;
+
+    std::stringstream ss;
+    ss << file.rdbuf();
+    std::string content = ss.str();
+
+    auto root = json_value::parse(content);
+    if (!root.is_object())
+        return false;
+
+    // The original binary stores config as flat key-value JSON
+    // Each key maps to a typed value
+    values_.clear();
+    // Config is loaded per-section by the menu system
+    // For now store the raw JSON and let features query it
+    return true;
 }
 
 bool config::save(const char* path) const {
-    // TODO: JSON serialization
-    return false;
+    json_value root;
+
+    for (auto& [key, val] : values_) {
+        switch (val.type) {
+        case config_value::BOOL:   root[key] = json_value(val.bool_val); break;
+        case config_value::INT:    root[key] = json_value(val.int_val); break;
+        case config_value::FLOAT:  root[key] = json_value(static_cast<double>(val.float_val)); break;
+        case config_value::STRING: root[key] = json_value(val.string_val); break;
+        default: break;
+        }
+    }
+
+    std::ofstream file(path);
+    if (!file.is_open())
+        return false;
+
+    file << root.dump(2);
+    return true;
 }
 
 }

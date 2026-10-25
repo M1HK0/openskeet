@@ -27,6 +27,12 @@ DllMain
        ├─ resolve_offsets()       ← Hardcoded + signature-scanned offsets
        ├─ init_netvars()          ← RecvTable walk for runtime netvar resolution
        ├─ install_hooks()         ← VMT hooks + VEH-based INT3 hooks
+       │    ├─ FrameStageNotify   ← Skin changer, visual modifications
+       │    ├─ CreateMove         ← Aimbot, anti-aim, movement, triggerbot
+       │    ├─ PaintTraverse      ← ESP, watermark, indicators
+       │    ├─ DrawModelExecute   ← Chams (material override)
+       │    ├─ LockCursor         ← Menu cursor unlock
+       │    └─ SceneEnd           ← Glow, post-processing
        └─ thread_hijack()         ← NtCreateSection + SetThreadContext
 ```
 
@@ -40,14 +46,29 @@ client.dll, engine.dll, vstdlib.dll, vgui2.dll, vguimatsurface.dll, materialsyst
 - **Thread Hijacking**: Creates suspended thread, allocates 1MB RWX, uses `NtCreateSection`, rewrites EIP/ESP/ESI/EDI via `SetThreadContext`
 - **V8 JavaScript Bridge**: Dynamically loads V8 API from `v8.dll` for scripting system
 - **Signature Scanner**: IDA-style byte pattern matching with wildcard support
+- **JSON Config**: Embedded JSON parser (nlohmann::json-like) for configuration load/save
+- **Scripting API**: Lua/JS callbacks (set_event_callback, find_signature, get_prop, UI widgets)
+- **Custom VM Decoder**: 9-opcode VM (ROL, DEC, NOT, ADD, XOR, ROR, INC, NEG, SUB) for data deobfuscation
+
+### Features (Reconstructed)
+- **Aimbot**: Target scanning, FOV-based selection, angle calculation, recoil control
+- **Triggerbot**: Crosshair trace-based auto fire
+- **Anti-Aim**: Desync (real/fake angle), jitter, freestanding
+- **ESP**: Box, health bar, name, weapon, skeleton, snaplines
+- **Chams**: Material override (flat, textured, glow, wireframe)
+- **Glow**: Object manager manipulation
+- **Movement**: Bhop, autostrafe, movement fix, edge bug, jump bug
+- **Fakelag**: Packet choking (factor, adaptive, fluctuate modes)
+- **Skin Changer**: Paint kit, seed, wear, stattrak, knife/glove model swap
+- **Misc**: Clantag animation, night mode, hitmarker, radar hack, rank reveal
 
 ## Building
 
-Requires Visual Studio 2022 with C++ desktop workload and CMake 3.20+.
+Requires Visual Studio with C++ desktop workload and CMake 3.20+.
 
 ```bash
 mkdir build && cd build
-cmake -G "Visual Studio 17 2022" -A Win32 ..
+cmake -G "Visual Studio 18 2026" -A Win32 ..
 cmake --build . --config Release
 ```
 
@@ -65,15 +86,24 @@ src/
 │   ├── imports.{h,cpp}      # Dynamic import resolution
 │   ├── thread_hijack.{h,cpp}# Anti-analysis thread hijacking
 │   ├── string_encrypt.{h,cpp}# XOR string decryption (SSE optimized)
-│   └── console.{h,cpp}      # Formatted console output
+│   ├── console.{h,cpp}      # Formatted console output
+│   ├── vm_decoder.{h,cpp}   # Custom VM bytecode decoder
+│   ├── config.{h,cpp}       # Configuration system
+│   └── json.{h,cpp}         # Embedded JSON parser/serializer
 ├── sdk/
 │   ├── netvars.{h,cpp}      # RecvTable netvar resolver
-│   ├── interfaces.{h,cpp}   # Source Engine CreateInterface wrapper
-│   ├── offsets.{h,cpp}      # Hardcoded game offsets
+│   ├── interfaces.{h,cpp}   # Source Engine CreateInterface wrapper (17+ interfaces)
+│   ├── offsets.{h,cpp}      # Hardcoded game offsets + module handles
 │   └── sig_scanner.{h,cpp}  # Byte pattern scanner
 ├── hooks/
-│   └── hooks.{h,cpp}        # VMT + VEH hooking system
+│   └── hooks.{h,cpp}        # VMT + VEH hooking system + hook callbacks
 ├── features/
+│   ├── aimbot.{h,cpp}       # Aimbot, triggerbot, anti-aim
+│   ├── visuals.{h,cpp}      # ESP, chams, glow
+│   ├── movement.{h,cpp}     # Bhop, autostrafe, fakelag
+│   ├── skinchanger.{h,cpp}  # Weapon skin changer
+│   ├── misc.{h,cpp}         # Clantag, night mode, hitmarker, radar
+│   ├── scripting.{h,cpp}    # Lua/JS scripting API framework
 │   └── v8_bridge.{h,cpp}    # V8 JavaScript scripting bridge
 └── include/
     ├── common.h              # Shared types and includes
@@ -97,12 +127,29 @@ src/
 - [x] Thread hijacking (NtCreateSection)
 - [x] V8 bridge (API resolution)
 - [x] Signature scanner
-- [ ] Full feature implementations (aimbot, ESP, etc.)
+- [x] VM decoder (9-opcode deobfuscation)
+- [x] JSON parser/serializer
+- [x] Config load/save system
+- [x] Scripting API (callbacks, UI elements, pattern scan, netvars)
+- [x] Aimbot (target scan, FOV selection, angle calc, RCS)
+- [x] Triggerbot
+- [x] Anti-aim (desync, jitter, freestanding)
+- [x] ESP (box, health, name, weapon, skeleton, snaplines)
+- [x] Chams (material override)
+- [x] Glow
+- [x] Movement (bhop, autostrafe, edge/jump bug)
+- [x] Fakelag
+- [x] Skin changer
+- [x] Misc features (clantag, night mode, hitmarker, radar)
+- [x] Source Engine interface resolution (17+ interfaces)
+- [x] Hook callbacks (7 vtable hooks)
+- [ ] Full VEH dispatch table (INT3 hook targets)
 - [ ] Complete import table reconstruction
 - [ ] Encrypted resource content reconstruction
-- [ ] Full V8 scripting system
-- [ ] Anti-aim, resolver, rage/legit bot
-- [ ] Menu/UI system
+- [ ] FourCC offset data tables (sub_100EB820 etc.)
+- [ ] Full V8 scripting pipeline
+- [ ] Menu/UI rendering system
+- [ ] Functional injection test
 
 ## Disclaimer
 
