@@ -61,6 +61,9 @@ struct offsets {
     // panorama.dll
     u8* panorama_engine;
 
+    // engine.dll view matrix
+    u8* view_matrix;
+
     bool resolve(const modules& mods);
 };
 
